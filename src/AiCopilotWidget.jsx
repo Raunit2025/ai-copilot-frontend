@@ -1,4 +1,3 @@
-// src/AiCopilotWidget.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -9,17 +8,21 @@ function AiCopilotWidget({ articleText }) {
   const [error, setError] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
+  const [email, setEmail] = useState('');
+  const [isEmailSubmitted, setIsEmailSubmitted] = useState(false);
 
-  // Function to call our backend API
+  // Function to call our backend API to generate a quiz
   const handleGenerateQuiz = async () => {
     setIsLoading(true);
     setError(null);
     setQuiz(null); // Reset previous quiz
     setShowResults(false);
     setUserAnswers({});
+    setEmail('');
+    setIsEmailSubmitted(false);
 
     try {
-      const response = await axios.post('http://localhost:3001/api/generate-quiz', {
+      const response = await axios.post('http://localhost:3001/api/get-quize', { // Corrected endpoint
         articleText: articleText,
       });
       setQuiz(response.data.quiz);
@@ -30,23 +33,44 @@ function AiCopilotWidget({ articleText }) {
       setIsLoading(false);
     }
   };
-  
+
+  // Store the user's selected answer for a question
   const handleAnswerSelect = (questionIndex, selectedOption) => {
     setUserAnswers({
       ...userAnswers,
       [questionIndex]: selectedOption,
     });
   };
-  
+
+  // Move to the email capture step after the user finishes the quiz
   const handleSubmitQuiz = () => {
     setShowResults(true);
+  };
+
+  // Handle the email form submission
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    console.log(`Email captured: ${email}`);
+
+    // Send lead data to the backend
+    try {
+      await axios.post('http://localhost:3001/api/capture-lead', {
+        email: email,
+        quizResults: userAnswers,
+        articleText: articleText,
+      });
+    } catch (err) {
+      console.error('Failed to capture lead on the backend:', err);
+    }
+
+    setIsEmailSubmitted(true); // This will trigger the results view
   };
 
   // --- Render Logic ---
   return (
     <div className="fixed bottom-4 right-4 w-96 bg-white shadow-2xl rounded-lg border border-gray-200 p-4 flex flex-col gap-4">
       <h3 className="font-bold text-lg text-slate-800">Learning Copilot</h3>
-      
+
       {/* Initial State: Show Generate Button */}
       {!isLoading && !quiz && (
         <>
@@ -65,7 +89,7 @@ function AiCopilotWidget({ articleText }) {
 
       {/* Error State */}
       {error && <p className="text-red-500">{error}</p>}
-      
+
       {/* Quiz Display State */}
       {quiz && !showResults && (
         <div className="flex flex-col gap-4">
@@ -89,21 +113,45 @@ function AiCopilotWidget({ articleText }) {
             onClick={handleSubmitQuiz}
             className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
           >
-            Show Results
+            Submit Quiz
           </button>
         </div>
       )}
 
-      {/* Results Display State */}
-      {quiz && showResults && (
+      {/* Email Capture State */}
+      {quiz && showResults && !isEmailSubmitted && (
+        <div className="flex flex-col gap-4">
+          <h4 className="font-bold">Get Your Results!</h4>
+          <p className="text-sm text-gray-600">Enter your email to see your score and get a free System Design cheatsheet.</p>
+          <form onSubmit={handleEmailSubmit} className="flex flex-col gap-2">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your email address"
+              className="p-2 border border-gray-300 rounded-lg"
+              required
+            />
+            <button
+              type="submit"
+              className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Get My Results
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Final Results Display State */}
+      {quiz && showResults && isEmailSubmitted && (
         <div className="flex flex-col gap-4">
           <h4 className="font-bold">Your Results:</h4>
           {quiz.map((q, index) => (
             <div key={index}>
               <p className="font-semibold">{q.question}</p>
               <p className={`p-2 rounded mt-1 ${
-                userAnswers[index] === q.correctAnswer 
-                ? 'bg-green-100 text-green-800' 
+                userAnswers[index] === q.correctAnswer
+                ? 'bg-green-100 text-green-800'
                 : 'bg-red-100 text-red-800'
               }`}>
                 Your answer: {userAnswers[index] || "Not answered"}. <br/>
@@ -111,7 +159,7 @@ function AiCopilotWidget({ articleText }) {
               </p>
             </div>
           ))}
-           <button
+          <button
             onClick={handleGenerateQuiz}
             className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors mt-2"
           >
