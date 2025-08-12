@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 function AiCopilotWidget({ articleText }) {
-  // State variables to manage the widget's behavior
   const [isLoading, setIsLoading] = useState(false);
   const [quiz, setQuiz] = useState(null);
   const [error, setError] = useState(null);
@@ -11,18 +10,17 @@ function AiCopilotWidget({ articleText }) {
   const [email, setEmail] = useState('');
   const [isEmailSubmitted, setIsEmailSubmitted] = useState(false);
 
-  // Function to call our backend API to generate a quiz
   const handleGenerateQuiz = async () => {
     setIsLoading(true);
     setError(null);
-    setQuiz(null); // Reset previous quiz
+    setQuiz(null); 
     setShowResults(false);
     setUserAnswers({});
     setEmail('');
     setIsEmailSubmitted(false);
 
     try {
-      const response = await axios.post('http://localhost:3001/api/get-quize', { // Corrected endpoint
+      const response = await axios.post('http://localhost:3001/api/generate-quiz', {
         articleText: articleText,
       });
       setQuiz(response.data.quiz);
@@ -34,7 +32,6 @@ function AiCopilotWidget({ articleText }) {
     }
   };
 
-  // Store the user's selected answer for a question
   const handleAnswerSelect = (questionIndex, selectedOption) => {
     setUserAnswers({
       ...userAnswers,
@@ -42,38 +39,34 @@ function AiCopilotWidget({ articleText }) {
     });
   };
 
-  // Move to the email capture step after the user finishes the quiz
   const handleSubmitQuiz = () => {
     setShowResults(true);
   };
 
-  // Handle the email form submission
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     console.log(`Email captured: ${email}`);
-
-    // Send lead data to the backend
+    
     try {
       await axios.post('http://localhost:3001/api/capture-lead', {
         email: email,
-        quizResults: userAnswers,
-        articleText: articleText,
+        quizResults: userAnswers, 
+        articleText: articleText, 
       });
+      console.log('Lead data successfully sent to backend.');
     } catch (err) {
-      console.error('Failed to capture lead on the backend:', err);
+      console.error('Failed to send lead data to the backend:', err);
     }
 
-    setIsEmailSubmitted(true); // This will trigger the results view
+    setIsEmailSubmitted(true); 
   };
 
-  // --- Render Logic ---
   return (
-    <div className="fixed bottom-4 right-4 w-96 bg-white shadow-2xl rounded-lg border border-gray-200 p-4 flex flex-col gap-4">
-      <h3 className="font-bold text-lg text-slate-800">Learning Copilot</h3>
+    <div className="fixed bottom-4 right-4 w-96 max-h-[80vh] bg-white shadow-2xl rounded-lg border border-gray-200 p-4 flex flex-col gap-4">
+      <h3 className="font-bold text-lg text-slate-800 flex-shrink-0">Learning Copilot</h3>
 
-      {/* Initial State: Show Generate Button */}
       {!isLoading && !quiz && (
-        <>
+        <div className="flex-shrink-0">
           <p className="text-sm text-gray-600">Test your knowledge on this article!</p>
           <button
             onClick={handleGenerateQuiz}
@@ -81,46 +74,48 @@ function AiCopilotWidget({ articleText }) {
           >
             Generate a Mini-Quiz
           </button>
-        </>
-      )}
-
-      {/* Loading State */}
-      {isLoading && <p className="text-gray-500">Generating your quiz...</p>}
-
-      {/* Error State */}
-      {error && <p className="text-red-500">{error}</p>}
-
-      {/* Quiz Display State */}
-      {quiz && !showResults && (
-        <div className="flex flex-col gap-4">
-          {quiz.map((q, index) => (
-            <div key={index}>
-              <p className="font-semibold">{index + 1}. {q.question}</p>
-              <div className="flex flex-col gap-2 mt-2">
-                {q.options.map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => handleAnswerSelect(index, option)}
-                    className={`text-left p-2 rounded-lg border ${userAnswers[index] === option ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          <button
-            onClick={handleSubmitQuiz}
-            className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Submit Quiz
-          </button>
         </div>
       )}
 
-      {/* Email Capture State */}
+      {isLoading && <p className="text-gray-500">Generating your quiz...</p>}
+
+      {error && <p className="text-red-500">{error}</p>}
+
+      {quiz && !showResults && (
+        <>
+          <div className="flex-grow overflow-y-auto pr-2">
+            <div className="flex flex-col gap-4">
+              {quiz.map((q, index) => (
+                <div key={index}>
+                  <p className="font-semibold">{index + 1}. {q.question}</p>
+                  <div className="flex flex-col gap-2 mt-2">
+                    {q.options.map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => handleAnswerSelect(index, option)}
+                        className={`text-left p-2 rounded-lg border ${userAnswers[index] === option ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <button
+              onClick={handleSubmitQuiz}
+              className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Submit Quiz
+            </button>
+          </div>
+        </>
+      )}
+
       {quiz && showResults && !isEmailSubmitted && (
-        <div className="flex flex-col gap-4">
+        <div className="flex-shrink-0">
           <h4 className="font-bold">Get Your Results!</h4>
           <p className="text-sm text-gray-600">Enter your email to see your score and get a free System Design cheatsheet.</p>
           <form onSubmit={handleEmailSubmit} className="flex flex-col gap-2">
@@ -142,30 +137,36 @@ function AiCopilotWidget({ articleText }) {
         </div>
       )}
 
-      {/* Final Results Display State */}
+      
       {quiz && showResults && isEmailSubmitted && (
-        <div className="flex flex-col gap-4">
-          <h4 className="font-bold">Your Results:</h4>
-          {quiz.map((q, index) => (
-            <div key={index}>
-              <p className="font-semibold">{q.question}</p>
-              <p className={`p-2 rounded mt-1 ${
-                userAnswers[index] === q.correctAnswer
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-              }`}>
-                Your answer: {userAnswers[index] || "Not answered"}. <br/>
-                Correct answer: {q.correctAnswer}
-              </p>
+        <>
+          <div className="flex-grow overflow-y-auto pr-2">
+            <div className="flex flex-col gap-4">
+              <h4 className="font-bold">Your Results:</h4>
+              {quiz.map((q, index) => (
+                <div key={index}>
+                  <p className="font-semibold">{q.question}</p>
+                  <p className={`p-2 rounded mt-1 ${
+                    userAnswers[index] === q.correctAnswer
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                  }`}>
+                    Your answer: {userAnswers[index] || "Not answered"}. <br/>
+                    Correct answer: {q.correctAnswer}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-          <button
-            onClick={handleGenerateQuiz}
-            className="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors mt-2"
-          >
-            Try a New Quiz
-          </button>
-        </div>
+          </div>
+           <div className="flex-shrink-0">
+            <button
+              onClick={handleGenerateQuiz}
+              className="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors mt-2"
+            >
+              Try a New Quiz
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
