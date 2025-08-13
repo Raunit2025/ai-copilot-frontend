@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// src/AiCopilotWidget.jsx
+
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 function AiCopilotWidget({ articleText }) {
@@ -9,15 +11,23 @@ function AiCopilotWidget({ articleText }) {
   const [showResults, setShowResults] = useState(false);
   const [email, setEmail] = useState('');
   const [isEmailSubmitted, setIsEmailSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Trigger the fade-in animation once the component is mounted
+    setIsVisible(true);
+  }, []);
 
   const handleGenerateQuiz = async () => {
     setIsLoading(true);
     setError(null);
-    setQuiz(null); 
+    setQuiz(null);
     setShowResults(false);
     setUserAnswers({});
     setEmail('');
     setIsEmailSubmitted(false);
+    setScore(0);
 
     try {
       const response = await axios.post('http://localhost:3001/api/generate-quiz', {
@@ -40,29 +50,37 @@ function AiCopilotWidget({ articleText }) {
   };
 
   const handleSubmitQuiz = () => {
+    let calculatedScore = 0;
+    quiz.forEach((q, index) => {
+      if (userAnswers[index] === q.correctAnswer) {
+        calculatedScore++;
+      }
+    });
+    setScore(calculatedScore);
     setShowResults(true);
   };
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     console.log(`Email captured: ${email}`);
-    
+
     try {
       await axios.post('http://localhost:3001/api/capture-lead', {
         email: email,
-        quizResults: userAnswers, 
-        articleText: articleText, 
+        score: score,
+        totalQuestions: quiz.length,
+        articleText: articleText,
       });
       console.log('Lead data successfully sent to backend.');
     } catch (err) {
       console.error('Failed to send lead data to the backend:', err);
     }
 
-    setIsEmailSubmitted(true); 
+    setIsEmailSubmitted(true);
   };
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 max-h-[80vh] bg-white shadow-2xl rounded-lg border border-gray-200 p-4 flex flex-col gap-4">
+    <div className={`widget-container ${isVisible ? 'fade-in' : ''}`}>
       <h3 className="font-bold text-lg text-slate-800 flex-shrink-0">Learning Copilot</h3>
 
       {!isLoading && !quiz && (
@@ -70,14 +88,14 @@ function AiCopilotWidget({ articleText }) {
           <p className="text-sm text-gray-600">Test your knowledge on this article!</p>
           <button
             onClick={handleGenerateQuiz}
-            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            className="button-primary"
           >
             Generate a Mini-Quiz
           </button>
         </div>
       )}
 
-      {isLoading && <p className="text-gray-500">Generating your quiz...</p>}
+      {isLoading && <div className="loader"></div>}
 
       {error && <p className="text-red-500">{error}</p>}
 
@@ -86,14 +104,14 @@ function AiCopilotWidget({ articleText }) {
           <div className="flex-grow overflow-y-auto pr-2">
             <div className="flex flex-col gap-4">
               {quiz.map((q, index) => (
-                <div key={index}>
+                <div key={index} className="quiz-question">
                   <p className="font-semibold">{index + 1}. {q.question}</p>
                   <div className="flex flex-col gap-2 mt-2">
                     {q.options.map((option) => (
                       <button
                         key={option}
                         onClick={() => handleAnswerSelect(index, option)}
-                        className={`text-left p-2 rounded-lg border ${userAnswers[index] === option ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`}
+                        className={`button-option ${userAnswers[index] === option ? 'selected' : ''}`}
                       >
                         {option}
                       </button>
@@ -106,7 +124,7 @@ function AiCopilotWidget({ articleText }) {
           <div className="flex-shrink-0">
             <button
               onClick={handleSubmitQuiz}
-              className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+              className="button-submit"
             >
               Submit Quiz
             </button>
@@ -124,12 +142,12 @@ function AiCopilotWidget({ articleText }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email address"
-              className="p-2 border border-gray-300 rounded-lg"
+              className="input-email"
               required
             />
             <button
               type="submit"
-              className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+              className="button-submit"
             >
               Get My Results
             </button>
@@ -137,19 +155,19 @@ function AiCopilotWidget({ articleText }) {
         </div>
       )}
 
-      
+
       {quiz && showResults && isEmailSubmitted && (
         <>
           <div className="flex-grow overflow-y-auto pr-2">
             <div className="flex flex-col gap-4">
-              <h4 className="font-bold">Your Results:</h4>
+              <h4 className="font-bold">Your Score: {score} / {quiz.length}</h4>
               {quiz.map((q, index) => (
-                <div key={index}>
+                <div key={index} className="quiz-question">
                   <p className="font-semibold">{q.question}</p>
-                  <p className={`p-2 rounded mt-1 ${
+                  <p className={`result ${
                     userAnswers[index] === q.correctAnswer
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
+                    ? 'correct'
+                    : 'incorrect'
                   }`}>
                     Your answer: {userAnswers[index] || "Not answered"}. <br/>
                     Correct answer: {q.correctAnswer}
@@ -159,9 +177,10 @@ function AiCopilotWidget({ articleText }) {
             </div>
           </div>
            <div className="flex-shrink-0">
+            <p className="text-sm text-center text-gray-600">A personalized email with more resources is on its way to you!</p>
             <button
               onClick={handleGenerateQuiz}
-              className="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors mt-2"
+              className="button-secondary"
             >
               Try a New Quiz
             </button>
